@@ -1,0 +1,34 @@
+[[mapping]]
+topic = "emfcamp_announce/announcements"
+rubric = "emfcamp"
+number = 1
+
+[[mapping]]
+topic = "emfcamp_announce/stage_a"
+rubric = "emfcamp"
+number = 2
+
+[[mapping]]
+topic = "emfcamp_announce/stage_b"
+rubric = "emfcamp"
+number = 3
+
+[[mapping]]
+topic = "emfcamp_announce/stage_c"
+rubric = "emfcamp"
+number = 4
+
+[[mapping]]
+topic = "emfcamp_announce/workshop_1"
+rubric = "emfcamp"
+number = 5
+
+[[mapping]]
+topic = "emfcamp_announce/workshop_2"
+rubric = "emfcamp"
+number = 6
+
+[[mapping]]
+topic = "emfcamp_announce/workshop_3"
+rubric = "emfcamp"
+number = 7
