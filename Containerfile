@@ -15,7 +15,8 @@ RUN RUSTFLAGS=-Ctarget-feature=-crt-static cargo install \
 FROM docker.io/library/alpine:3.15
 
 RUN apk add \
-  libgcc
+  libgcc \
+  tini
 
 COPY --from=builder \
   /usr/local/bin/mqtt-rubric-publisher \
@@ -23,5 +24,4 @@ COPY --from=builder \
 
 RUN mkdir /config
 
-ENTRYPOINT ["/usr/local/bin/mqtt-rubric-publisher"]
-CMD ["--mapping-file", "/config/mapping.toml"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/mqtt-rubric-publisher", "--mapping-file", "/config/mapping.toml"]
