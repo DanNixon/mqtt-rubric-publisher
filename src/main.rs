@@ -1,6 +1,9 @@
+mod call;
 mod mapping;
+mod rubric;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use clap::Parser;
 use dapnet_api::Client;
 use mapping::Mappings;
@@ -8,7 +11,12 @@ use paho_mqtt::{AsyncClient, ConnectOptionsBuilder, CreateOptionsBuilder};
 use std::env;
 use tokio::time::Duration;
 
-/// Tool to publish news to DAPNET rubrics via MQTT.
+#[async_trait]
+trait SendViaDapnet {
+    async fn send(&self, client: &Client, text: &str) -> Result<()>;
+}
+
+/// Tool to publish calls and news to DAPNET via MQTT.
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
@@ -53,7 +61,7 @@ async fn main() -> Result<()> {
     log::debug!("{:?}", args);
 
     let mapping = Mappings::from_file(&args.mapping_file)?;
-    log::debug!("Loaded topic-rubric mapping: {:?}", mapping);
+    log::info!("Loaded mapping: {:#?}", mapping);
 
     let dapnet_client = Client::new(&args.dapnet_username, &args.dapnet_password);
 
@@ -82,14 +90,14 @@ async fn main() -> Result<()> {
 
     while let Ok(msg) = stream.recv().await {
         if let Some(msg) = msg {
-            if let Some(bum) = mapping.lookup_by_topic(msg.topic()) {
-                log::info!("Received MQTT message matching: {:?}", bum);
-
-                let news = bum.create_news(&msg.payload_str().to_string());
-                log::info!("Generated: {:?}", news);
-
-                if let Err(e) = dapnet_client.new_news(&news).await {
-                    log::error!("Failed sending rubric news: {}", e);
+            if let Some(mapping) = mapping.lookup_by_topic(msg.topic()) {
+                log::info!("Received MQTT message matching: {:?}", mapping);
+                if let Err(e) = mapping
+                    .destination
+                    .send(&dapnet_client, &msg.payload_str().to_string())
+                    .await
+                {
+                    log::error!("Failed to send with error {}", e);
                 }
             }
         } else {

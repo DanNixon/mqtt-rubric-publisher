@@ -1,24 +1,29 @@
+use crate::{call::Call, rubric::Rubric, SendViaDapnet};
 use anyhow::Result;
-use dapnet_api::News;
+use async_trait::async_trait;
 use serde::Deserialize;
 use std::fs;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct Mapping {
     topic: String,
-
-    #[serde(rename = "rubric")]
-    rubric_name: String,
-
-    #[serde(rename = "number")]
-    rubric_number: i8,
+    pub destination: Destination,
 }
 
-impl Mapping {
-    pub(crate) fn create_news(&self, text: &str) -> News {
-        let mut news = News::new(self.rubric_name.clone(), text.to_string());
-        news.number = Some(self.rubric_number);
-        news
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub(crate) enum Destination {
+    Call(Call),
+    Rubric(Rubric),
+}
+
+#[async_trait]
+impl SendViaDapnet for Destination {
+    async fn send(&self, client: &dapnet_api::Client, text: &str) -> Result<()> {
+        match &self {
+            Destination::Call(i) => i.send(client, text).await,
+            Destination::Rubric(i) => i.send(client, text).await,
+        }
     }
 }
 
