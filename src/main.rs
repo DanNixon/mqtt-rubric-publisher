@@ -2,7 +2,7 @@ mod call;
 mod mapping;
 mod rubric;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use clap::Parser;
 use dapnet_api::Client;
@@ -88,25 +88,44 @@ async fn main() -> Result<()> {
     }
 
     while let Ok(msg) = stream.recv().await {
-        if let Some(msg) = msg {
-            if let Some(mapping) = mapping.lookup_by_topic(msg.topic()) {
-                log::info!("Received MQTT message matching: {:?}", mapping);
-                if let Err(e) = mapping
-                    .destination
-                    .send(&dapnet_client, &msg.payload_str().to_string())
-                    .await
-                {
-                    log::error!("Failed to send with error {}", e);
+        match msg {
+            Some(msg) => {
+                if let Some(mapping) = mapping.lookup_by_topic(msg.topic()) {
+                    log::info!("Received MQTT message matching: {:?}", mapping);
+                    if let Err(e) = mapping
+                        .destination
+                        .send(&dapnet_client, &msg.payload_str().to_string())
+                        .await
+                    {
+                        log::error!("Failed to send with error {}", e);
+                    }
                 }
             }
-        } else {
-            log::warn!("Disconnected from MQTT broker, trying to reconnect...");
-            while let Err(e) = mqtt_client.reconnect().await {
-                log::error!("Failed to connect to MQTT broker: {}", e);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+            None => {
+                log::warn!("Disconnected from MQTT broker, trying to reconnect...");
+                if let Err(e) = try_reconnect(&mqtt_client).await {
+                    return Err(e);
+                }
             }
         }
     }
 
     Ok(())
+}
+
+async fn try_reconnect(c: &AsyncClient) -> Result<()> {
+    for i in 0..10 {
+        log::info!("Attempting reconnection {}...", i);
+        match c.reconnect().await {
+            Ok(_) => {
+                log::info!("Reconnection successful");
+                return Ok(());
+            }
+            Err(e) => {
+                log::error!("Reconnection failed: {}", e);
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    Err(anyhow!("Failed to reconnect to broker"))
 }
