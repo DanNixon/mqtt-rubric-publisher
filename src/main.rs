@@ -17,7 +17,7 @@ trait SendViaDapnet {
 }
 
 /// Tool to publish calls and news to DAPNET via MQTT.
-#[derive(Debug, Parser)]
+#[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Cli {
     /// Address of MQTT broker to connect to
@@ -58,7 +58,6 @@ async fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let args = Cli::parse();
-    log::debug!("{:?}", args);
 
     let mapping = Mappings::from_file(&args.mapping_file)?;
     log::info!("Loaded mapping: {:#?}", mapping);
