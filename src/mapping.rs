@@ -37,8 +37,8 @@ impl Mappings {
         Ok(toml::from_str(&fs::read_to_string(filename)?)?)
     }
 
-    pub(crate) fn get_topics(&self) -> Vec<&str> {
-        self.mapping.iter().map(|m| m.topic.as_str()).collect()
+    pub(crate) fn get_topics(&self) -> Vec<String> {
+        self.mapping.iter().map(|m| m.topic.clone()).collect()
     }
 
     pub(crate) fn lookup_by_topic(&self, topic: &str) -> Option<&Mapping> {

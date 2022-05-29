@@ -2,13 +2,12 @@ mod call;
 mod mapping;
 mod rubric;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use clap::Parser;
 use dapnet_api::Client;
 use mapping::Mappings;
-use paho_mqtt::{AsyncClient, ConnectOptionsBuilder, CreateOptionsBuilder};
-use std::env;
+use paho_mqtt::{AsyncClient, ConnectOptionsBuilder, CreateOptionsBuilder, PersistenceType};
 use tokio::time::Duration;
 
 #[async_trait]
@@ -68,64 +67,49 @@ async fn main() -> Result<()> {
         CreateOptionsBuilder::new()
             .server_uri(&args.mqtt_broker)
             .client_id(&args.mqtt_client_id)
-            .persistence(env::temp_dir())
+            .persistence(PersistenceType::None)
             .finalize(),
     )?;
 
     let stream = mqtt_client.get_stream(25);
 
-    mqtt_client
+    let topics = mapping.get_topics();
+    mqtt_client.set_connected_callback(move |c| {
+        log::info!("Connected to broker");
+        for topic in &topics {
+            c.subscribe(topic, args.mqtt_qos);
+        }
+    });
+
+    let response = mqtt_client
         .connect(
             ConnectOptionsBuilder::new()
+                .clean_session(true)
+                .automatic_reconnect(Duration::from_secs(1), Duration::from_secs(5))
+                .keep_alive_interval(Duration::from_secs(5))
                 .user_name(&args.mqtt_username)
                 .password(&args.mqtt_password)
                 .finalize(),
         )
         .wait()?;
 
-    for topic in mapping.get_topics() {
-        mqtt_client.subscribe(topic, args.mqtt_qos).await?;
-    }
+    log::info!(
+        "Using MQTT version {}",
+        response.connect_response().unwrap().mqtt_version
+    );
 
-    while let Ok(msg) = stream.recv().await {
-        match msg {
-            Some(msg) => {
-                if let Some(mapping) = mapping.lookup_by_topic(msg.topic()) {
-                    log::info!("Received MQTT message matching: {:?}", mapping);
-                    if let Err(e) = mapping
-                        .destination
-                        .send(&dapnet_client, &msg.payload_str().to_string())
-                        .await
-                    {
-                        log::error!("Failed to send with error {}", e);
-                    }
-                }
-            }
-            None => {
-                log::warn!("Disconnected from MQTT broker, trying to reconnect...");
-                if let Err(e) = try_reconnect(&mqtt_client).await {
-                    return Err(e);
+    loop {
+        if let Ok(Some(msg)) = stream.recv().await {
+            if let Some(mapping) = mapping.lookup_by_topic(msg.topic()) {
+                log::info!("Received MQTT message matching: {:?}", mapping);
+                if let Err(e) = mapping
+                    .destination
+                    .send(&dapnet_client, &msg.payload_str().to_string())
+                    .await
+                {
+                    log::error!("Failed to send with error {}", e);
                 }
             }
         }
     }
-
-    Ok(())
-}
-
-async fn try_reconnect(c: &AsyncClient) -> Result<()> {
-    for i in 0..10 {
-        log::info!("Attempting reconnection {}...", i);
-        match c.reconnect().await {
-            Ok(_) => {
-                log::info!("Reconnection successful");
-                return Ok(());
-            }
-            Err(e) => {
-                log::error!("Reconnection failed: {}", e);
-            }
-        }
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    Err(anyhow!("Failed to reconnect to broker"))
 }
