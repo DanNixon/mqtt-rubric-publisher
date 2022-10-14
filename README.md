@@ -1,4 +1,7 @@
-# MQTT DAPNET rubric publisher [![CI](https://github.com/DanNixon/mqtt-rubric-publisher/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DanNixon/mqtt-rubric-publisher/actions/workflows/ci.yml)
+# MQTT DAPNET rubric publisher
+
+[![CI](https://github.com/DanNixon/mqtt-rubric-publisher/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DanNixon/mqtt-rubric-publisher/actions/workflows/ci.yml)
+[![dependency status](https://deps.rs/repo/github/dannixon/mqtt-rubric-publisher/status.svg)](https://deps.rs/repo/github/dannixon/mqtt-rubric-publisher)
 
 Tool to publish calls and news to [DAPNET](https://www.hampager.de/) [rubrics](https://hampager.de/dokuwiki/doku.php#rubrics) via [MQTT](https://mqtt.org/).
 

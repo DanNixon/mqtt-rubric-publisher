@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
                 log::info!("Received MQTT message matching: {:?}", mapping);
                 if let Err(e) = mapping
                     .destination
-                    .send(&dapnet_client, &msg.payload_str().to_string())
+                    .send(&dapnet_client, &msg.payload_str())
                     .await
                 {
                     log::error!("Failed to send with error {}", e);
